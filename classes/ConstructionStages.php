@@ -48,8 +48,15 @@ class ConstructionStages
 		return $stmt->fetchAll(PDO::FETCH_ASSOC);
 	}
 
-	public function post(ConstructionStagesCreate $data)
+    /**
+     * @throws Exception
+     */
+    public function post(ConstructionStagesCreate $data)
 	{
+        $checkErrors = $this->validateFields($data);
+        if($checkErrors['errors'] != []){
+            throw new Exception(json_encode($checkErrors['errors']));
+        }
 		$stmt = $this->db->prepare("
 			INSERT INTO construction_stages
 			    (name, start_date, end_date, duration, durationUnit, color, externalId, status)
@@ -67,4 +74,152 @@ class ConstructionStages
 		]);
 		return $this->getSingle($this->db->lastInsertId());
 	}
+
+    /**
+     * @throws Exception
+     */
+    public function patch(ConstructionStagesUpdate $data, $id)
+    {
+        $checkErrors = $this->validateFields($data);
+        if($checkErrors['errors'] != []){
+            throw new Exception(json_encode($checkErrors['errors']));
+        }
+        $fieldMappings = [
+            'name' => 'name',
+            'startDate' => 'start_date',
+            'endDate' => 'end_date',
+            'duration' => 'duration',
+            'durationUnit' => 'durationUnit',
+            'color' => 'color',
+            'externalId' => 'externalId',
+            'status' => 'status',
+        ];
+        $query = "UPDATE construction_stages SET ";
+        $bindings = [];
+        foreach($data as $field => $value){
+            if(!empty($value) && isset($fieldMappings[$field])){
+                $columnName = $fieldMappings[$field];
+                $query .= "$columnName = :$columnName, ";
+                $bindings[$columnName] = $value;
+
+              }
+            if ($field === 'status' && !in_array($value, ['PLANNED', 'NEW', 'DELETED'])) {
+                throw new Exception("Invalid status value: $value, please check the state field");
+            }
+        }
+        $query = rtrim($query, ', ');
+        $query .= " WHERE ID = :id";
+        $bindings['id'] = $id;
+        $stmt = $this->db->prepare($query);
+        foreach ($bindings as $param => $value) {
+            $stmt->bindValue($param, $value);
+        }
+
+        $stmt->execute();
+        return $this->getSingle($id);
+
+    }
+
+    public function deleteConstructionStage($id)
+    {
+        $query = "UPDATE construction_stages
+        SET status = 'DELETED'
+        WHERE ID = :id";
+
+        $stmt = $this->db->prepare($query);
+        $stmt->bindValue(':id', $id);
+        $stmt->execute();
+
+        // Check if any rows were affected
+        if ($stmt->rowCount() === 0) {
+            throw new Exception("Construction stage not found");
+        }
+
+        return "Construction stage with ID $id has been deleted";
+    }
+
+    public function validateFields($data){
+        $rules = [
+            'name' => [
+                'max_length' => 255,
+            ],
+            'start_date' => [
+                'date_format' => 'Y-m-d\TH:i:s\Z',
+            ],
+            'end_date' => [
+                'nullable' => true,
+                'date_format' => 'Y-m-d\TH:i:s\Z',
+                'later_than' => 'start_date',
+            ],
+            'duration' => [
+                'skip' => true,
+            ],
+            'durationUnit' => [
+                'allowed_values' => ['HOURS', 'DAYS', 'WEEKS'],
+                'default' => 'DAYS',
+            ],
+            'color' => [
+                'nullable' => true,
+                'hex_color' => true,
+            ],
+            'externalId' => [
+                'nullable' => true,
+                'max_length' => 255,
+            ],
+            'status' => [
+                'allowed_values' => ['NEW', 'PLANNED', 'DELETED'],
+                'default' => 'NEW',
+            ],
+        ];
+
+        $errors = [];
+
+        foreach ($rules as $field => $fieldRules){
+            if(isset($data->$field) ){
+               $value = $data->$field;
+               foreach($fieldRules as $rule => $param){
+                   switch($rule){
+                       case 'max_length':
+                           if(strlen($value) > $param){
+                               $errors[] = "Field $field must be less than $param characters long";
+                           }
+                           break;
+                       case 'date_format':
+                           $dateTime = DateTime::createFromFormat($param, $value);
+                           $errors[$field] = ($dateTime === false || $dateTime->format($param) !== $value)
+                               ? "Field '$field' must be a valid date and time in the format $param."
+                               : null;
+                           break;
+                          case 'nullable':
+                              if(!$param && empty($value)){
+                                  $errors[] = "Field $field cannot be empty";
+                              }
+                              break;
+                       case 'later_than':
+                           if (!empty($value) && isset($data[$param])) {
+                               $startDateTime = new DateTime($data[$param]);
+                               $endDateTime = new DateTime($value);
+                               if ($endDateTime <= $startDateTime) {
+                                   $errors[$field] = "Field '$field' must be a datetime later than the '$param' field.";
+                               }
+                           }
+                           break;
+                       case 'allowed_values':
+                           if (!in_array($value, $param, true)) {
+                               $allowedValues = implode(', ', $param);
+                               $errors[$field] = "Field '$field' must be one of the allowed values: $allowedValues.";
+                           }
+                           break;
+                       case 'hex_color':
+                           if (!empty($value) && !preg_match('/^#[a-fA-F0-9]{6}$/', $value)) {
+                               $errors[$field] = "Field '$field' must be a valid HEX color code.";
+                           }
+                           break;
+                   }
+               }
+            }
+
+        }
+        return ['data' => $data, 'errors' => $errors];
+    }
 }
