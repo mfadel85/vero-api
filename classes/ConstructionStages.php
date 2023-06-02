@@ -175,13 +175,15 @@ class ConstructionStages
             'name' => [
                 'max_length' => 255,
             ],
-            'start_date' => [
+            'startDate' => [
                 'date_format' => 'Y-m-d\TH:i:s\Z',
+                'iso_8601' => true,
             ],
-            'end_date' => [
+            'endDate' => [
                 'nullable' => true,
                 'date_format' => 'Y-m-d\TH:i:s\Z',
                 'later_than' => 'start_date',
+                'iso_8601' => true,
             ],
             'duration' => [
                 'skip' => true,
@@ -203,13 +205,23 @@ class ConstructionStages
                 'default' => 'NEW',
             ],
         ];
-
+        $fieldMappings = [
+            'name' => 'name',
+            'startDate' => '',
+            'endDate' => 'end_date',
+            'duration' => 'duration',
+            'durationUnit' => 'durationUnit',
+            'color' => 'color',
+            'externalId' => 'externalId',
+            'status' => 'status',
+        ];
         $errors = [];
 
         foreach ($rules as $field => $fieldRules){
             if(isset($data->$field) ){
                $value = $data->$field;
                foreach($fieldRules as $rule => $param){
+
                    switch($rule){
                        case 'max_length':
                            if(strlen($value) > $param){
@@ -222,6 +234,14 @@ class ConstructionStages
                                ? "Field '$field' must be a valid date and time in the format $param."
                                : null;
                            break;
+                       case 'iso_8601':
+                           print_r($rule);
+                           print_r("<BR>");
+                           $dateTime = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $value);
+                           $errors[$field] = ($dateTime === false || $dateTime->format('Y-m-d\TH:i:s\Z') !== $value)
+                               ? "Field '$field' must be a valid ISO 8601 date and time."
+                               : null;
+                           break;
                           case 'nullable':
                               if(!$param && empty($value)){
                                   $errors[] = "Field $field cannot be empty";
@@ -229,12 +249,12 @@ class ConstructionStages
                               break;
                        case 'later_than':
 
-                           if (!empty($value) && isset($data[$param])) {
-                               $startDateTime = new DateTime($data[$param]);
-                               $endDateTime = new DateTime($value);
+                           if (!empty($value) && isset($data->$param)) {
+                               $startDateTime = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $data->$param);
+                               $endDateTime = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $value);
 
                                if ($endDateTime <= $startDateTime) {
-                                   $errors[$field] = "Field '$field' must be a datetime later than the '$param' field.";
+                                   $errors[$field][] = "Field '$field' must be a datetime later than the '$param' field.";
                                }
                            }
                            break;
