@@ -53,7 +53,7 @@ class ConstructionStages
      */
     public function post(ConstructionStagesCreate $data)
 	{
-        var_dump($data);
+
         $checkErrors = $this->validateFields($data);
         if($checkErrors['errors'] != []){
             throw new Exception(json_encode($checkErrors['errors']));
@@ -212,7 +212,7 @@ class ConstructionStages
 
         $fieldMappings = [
             'name' => 'name',
-            'startDate' => 'startDate',
+            'start_date' => 'startDate',
             'endDate' => 'end_date',
             'duration' => 'duration',
             'durationUnit' => 'durationUnit',
@@ -248,11 +248,19 @@ class ConstructionStages
                               }
                               break;
                        case 'later_than':
+                            print_r ("later than value ");
+                            var_dump($value);
+                           print_r ("  param ");
+                           $mapping = $fieldMappings[$param];
+                           var_dump($data->$mapping);
 
-                           if (!empty($value) && isset($data->$param)) {
-                               $startDateTime = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $data->$param);
+                           if (!empty($value) && isset($data->$mapping)) {
+                               $startDateTime = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $data->$mapping);
                                $endDateTime = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $value);
-
+                               print_r("start date time    ");
+                                var_dump($startDateTime);
+                                 print_r("   end date time");
+                                var_dump($endDateTime);
                                if ($endDateTime <= $startDateTime) {
                                    $errors[$field][] = "Field '$field' must be a datetime later than the '$param' field.";
                                }
