@@ -63,20 +63,38 @@ class ConstructionStages
 
             $startDateTime = new DateTime($data->startDate);
             $endDateTime = new DateTime($data->endDate);
-            $interval = $startDateTime->diff($endDateTime);
-            $duration = $interval->days;
+            switch ($data->durationUnit) {
+                case 'WEEKS':
+                    $interval = $startDateTime->diff($endDateTime);
+                    $duration = ceil($interval->days / 7);
+                    break;
+                case 'DAYS':
+                    $interval = $startDateTime->diff($endDateTime);
+                    $duration = $interval->days;
+                    break;
+                case 'HOURS':
+                    $interval = $startDateTime->diff($endDateTime);
+                    $duration = $interval->h + ($interval->days * 24);
+                    break;
+                default:
+                    break;
+            }
+            //$interval = $startDateTime->diff($endDateTime);
+            //$duration = $interval->days;
         }
 		$stmt = $this->db->prepare("
 			INSERT INTO construction_stages
 			    (name, start_date, end_date, duration, durationUnit, color, externalId, status)
 			    VALUES (:name, :start_date, :end_date, :duration, :durationUnit, :color, :externalId, :status)
 			");
-		$stmt->execute([
+        $durationUnit = $data->durationUnit ?? 'DAYS';
+
+        $stmt->execute([
 			'name' => $data->name,
 			'start_date' => $data->startDate,
 			'end_date' => $data->endDate,
 			'duration' => $duration,
-			'durationUnit' => $data->durationUnit,
+			'durationUnit' => $durationUnit,
 			'color' => $data->color,
 			'externalId' => $data->externalId,
 			'status' => $data->status,
@@ -270,6 +288,11 @@ class ConstructionStages
                        case 'hex_color':
                            if (!empty($value) && !preg_match('/^#[a-fA-F0-9]{6}$/', $value)) {
                                $errors[$field] = "Field '$field' must be a valid HEX color code.";
+                           }
+                           break;
+                       case 'default':
+                           if (!isset($data->$field)) {
+                               $data->$field = $param;
                            }
                            break;
                    }
