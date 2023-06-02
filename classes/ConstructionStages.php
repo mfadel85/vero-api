@@ -139,8 +139,8 @@ class ConstructionStages
      *
      * @param int $id The ID of the construction stage to delete.
      *
-     * @return mixed Returns the result of the deletion operation. The specific return value may vary based on your implementation.
-     *               It could be a boolean indicating the success of the deletion or any other meaningful value.
+     * @return mixed Returns the result of the deletion operation.
+     *
      * @throws Exception If an error occurs during the deletion process.
      */
     public function deleteConstructionStage($id)
