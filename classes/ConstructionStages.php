@@ -53,6 +53,7 @@ class ConstructionStages
      */
     public function post(ConstructionStagesCreate $data)
 	{
+        var_dump($data);
         $checkErrors = $this->validateFields($data);
         if($checkErrors['errors'] != []){
             throw new Exception(json_encode($checkErrors['errors']));
@@ -176,12 +177,12 @@ class ConstructionStages
                 'max_length' => 255,
             ],
             'startDate' => [
-                'date_format' => 'Y-m-d\TH:i:s\Z',
+                //'date_format' => 'Y-m-d\TH:i:s\Z',
                 'iso_8601' => true,
             ],
             'endDate' => [
                 'nullable' => true,
-                'date_format' => 'Y-m-d\TH:i:s\Z',
+                //'date_format' => 'Y-m-d\TH:i:s\Z',
                 'later_than' => 'start_date',
                 'iso_8601' => true,
             ],
@@ -205,9 +206,13 @@ class ConstructionStages
                 'default' => 'NEW',
             ],
         ];
+
+
+
+
         $fieldMappings = [
             'name' => 'name',
-            'startDate' => '',
+            'startDate' => 'startDate',
             'endDate' => 'end_date',
             'duration' => 'duration',
             'durationUnit' => 'durationUnit',
@@ -228,19 +233,14 @@ class ConstructionStages
                                $errors[] = "Field $field must be less than $param characters long";
                            }
                            break;
-                       case 'date_format':
-                           $dateTime = DateTime::createFromFormat($param, $value);
-                           $errors[$field] = ($dateTime === false || $dateTime->format($param) !== $value)
-                               ? "Field '$field' must be a valid date and time in the format $param."
-                               : null;
-                           break;
+
                        case 'iso_8601':
-                           print_r($rule);
-                           print_r("<BR>");
+
                            $dateTime = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $value);
-                           $errors[$field] = ($dateTime === false || $dateTime->format('Y-m-d\TH:i:s\Z') !== $value)
-                               ? "Field '$field' must be a valid ISO 8601 date and time."
-                               : null;
+                           if($dateTime === false || $dateTime->format('Y-m-d\TH:i:s\Z') !== $value){
+                               $errors[$field] = "Field '$field' must be a valid ISO 8601 date and time.";
+                           }
+
                            break;
                           case 'nullable':
                               if(!$param && empty($value)){
@@ -274,6 +274,7 @@ class ConstructionStages
             }
 
         }
+
         return ['data' => $data, 'errors' => $errors];
     }
 }
