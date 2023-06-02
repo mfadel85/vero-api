@@ -57,6 +57,14 @@ class ConstructionStages
         if($checkErrors['errors'] != []){
             throw new Exception(json_encode($checkErrors['errors']));
         }
+        $duration = null;
+        if ($data->endDate !== null) {
+
+            $startDateTime = new DateTime($data->startDate);
+            $endDateTime = new DateTime($data->endDate);
+            $interval = $startDateTime->diff($endDateTime);
+            $duration = $interval->days;
+        }
 		$stmt = $this->db->prepare("
 			INSERT INTO construction_stages
 			    (name, start_date, end_date, duration, durationUnit, color, externalId, status)
@@ -66,7 +74,7 @@ class ConstructionStages
 			'name' => $data->name,
 			'start_date' => $data->startDate,
 			'end_date' => $data->endDate,
-			'duration' => $data->duration,
+			'duration' => $duration,
 			'durationUnit' => $data->durationUnit,
 			'color' => $data->color,
 			'externalId' => $data->externalId,
@@ -76,7 +84,14 @@ class ConstructionStages
 	}
 
     /**
-     * @throws Exception
+     * Update a construction stage by ID using the provided data.
+     *
+     * @param ConstructionStagesUpdate $data The data used to update the construction stage.
+     * @param int                      $id   The ID of the construction stage to update.
+     *
+     * @return mixed Returns the updated construction stage object or the result of the update operation.
+     *               The specific return value may vary based on your implementation.
+     * @throws Exception If an error occurs during the update process.
      */
     public function patch(ConstructionStagesUpdate $data, $id)
     {
@@ -119,7 +134,15 @@ class ConstructionStages
         return $this->getSingle($id);
 
     }
-
+    /**
+     * Delete a construction stage by ID: actually change the status to 'DELETED'.
+     *
+     * @param int $id The ID of the construction stage to delete.
+     *
+     * @return mixed Returns the result of the deletion operation. The specific return value may vary based on your implementation.
+     *               It could be a boolean indicating the success of the deletion or any other meaningful value.
+     * @throws Exception If an error occurs during the deletion process.
+     */
     public function deleteConstructionStage($id)
     {
         $query = "UPDATE construction_stages
@@ -138,6 +161,15 @@ class ConstructionStages
         return "Construction stage with ID $id has been deleted";
     }
 
+    /**
+     * Validate the posted fields against a set of rules.
+     *
+     * @param array $data The posted fields to validate.
+     *
+     * @return array An associative array containing the validated data and any errors.
+     *               The 'data' key holds the validated data, and the 'errors' key holds any validation errors.
+     * @throws Exception
+     */
     public function validateFields($data){
         $rules = [
             'name' => [
@@ -196,9 +228,11 @@ class ConstructionStages
                               }
                               break;
                        case 'later_than':
+
                            if (!empty($value) && isset($data[$param])) {
                                $startDateTime = new DateTime($data[$param]);
                                $endDateTime = new DateTime($value);
+
                                if ($endDateTime <= $startDateTime) {
                                    $errors[$field] = "Field '$field' must be a datetime later than the '$param' field.";
                                }
