@@ -59,29 +59,7 @@ class ConstructionStages
             throw new Exception(json_encode($checkErrors['errors']));
         }
         $duration = null;
-        if ($data->endDate !== null) {
-
-            $startDateTime = new DateTime($data->startDate);
-            $endDateTime = new DateTime($data->endDate);
-            switch ($data->durationUnit) {
-                case 'WEEKS':
-                    $interval = $startDateTime->diff($endDateTime);
-                    $duration = ceil($interval->days / 7);
-                    break;
-                case 'DAYS':
-                    $interval = $startDateTime->diff($endDateTime);
-                    $duration = $interval->days;
-                    break;
-                case 'HOURS':
-                    $interval = $startDateTime->diff($endDateTime);
-                    $duration = $interval->h + ($interval->days * 24);
-                    break;
-                default:
-                    break;
-            }
-            //$interval = $startDateTime->diff($endDateTime);
-            //$duration = $interval->days;
-        }
+        $duration = $this->calcDuration($data);
 		$stmt = $this->db->prepare("
 			INSERT INTO construction_stages
 			    (name, start_date, end_date, duration, durationUnit, color, externalId, status)
@@ -118,6 +96,16 @@ class ConstructionStages
         if($checkErrors['errors'] != []){
             throw new Exception(json_encode($checkErrors['errors']));
         }
+        // Check if startDate or endDate fields are updated
+        $isStartDateUpdated = isset($data->startDate);
+        $isEndDateUpdated = isset($data->endDate);
+
+        // Calculate the new duration if either startDate or endDate is updated
+        $duration = null;
+        if ($isStartDateUpdated || $isEndDateUpdated) {
+            $duration = $this->calcDuration($data);
+        }
+
         $fieldMappings = [
             'name' => 'name',
             'startDate' => 'start_date',
@@ -141,6 +129,12 @@ class ConstructionStages
                 throw new Exception("Invalid status value: $value, please check the state field");
             }
         }
+        // Update duration in the query if startDate or endDate is updated
+        if ($isStartDateUpdated || $isEndDateUpdated) {
+            $query .= "duration = :duration, ";
+            $bindings['duration'] = $duration;
+        }
+
         $query = rtrim($query, ', ');
         $query .= " WHERE ID = :id";
         $bindings['id'] = $id;
@@ -302,5 +296,36 @@ class ConstructionStages
         }
 
         return ['data' => $data, 'errors' => $errors];
+    }
+
+    /**
+     * @param ConstructionStagesUpdate $data
+     * @return void
+     * @throws Exception
+     */
+    public function calcDuration(ConstructionStagesUpdate|ConstructionStagesCreate $data)
+    {
+        $duration =$data->duration;
+        if ($data->endDate !== null) {
+
+            $startDateTime = new DateTime($data->startDate);
+            $endDateTime = new DateTime($data->endDate);
+            switch ($data->durationUnit) {
+                case 'WEEKS':
+                    $interval = $startDateTime->diff($endDateTime);
+                    $duration = ceil($interval->days / 7);
+                    break;
+                case 'HOURS':
+                    $interval = $startDateTime->diff($endDateTime);
+                    $duration = $interval->h + ($interval->days * 24);
+                    break;
+                default:
+                    $interval = $startDateTime->diff($endDateTime);
+                    $duration = $interval->days;
+                    break;
+            }
+            return $duration;
+
+        }
     }
 }
