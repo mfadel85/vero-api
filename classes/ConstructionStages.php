@@ -248,19 +248,14 @@ class ConstructionStages
                               }
                               break;
                        case 'later_than':
-                            print_r ("later than value ");
-                            var_dump($value);
-                           print_r ("  param ");
+
                            $mapping = $fieldMappings[$param];
-                           var_dump($data->$mapping);
+
 
                            if (!empty($value) && isset($data->$mapping)) {
                                $startDateTime = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $data->$mapping);
                                $endDateTime = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $value);
-                               print_r("start date time    ");
-                                var_dump($startDateTime);
-                                 print_r("   end date time");
-                                var_dump($endDateTime);
+
                                if ($endDateTime <= $startDateTime) {
                                    $errors[$field][] = "Field '$field' must be a datetime later than the '$param' field.";
                                }
